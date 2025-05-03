@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DASH.js Test with Metrics</title>
+    <script src="/dash_output/dash.all.min.js"></script>
+    <style>
+        .container { display: flex; justify-content: space-between; padding: 20px; }
+        .video-player { width: 70%; }
+        .metrics { width: 25%; border: 1px solid #ccc; padding: 10px; font-family: Arial, sans-serif; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-player">
+            <video id="videoPlayer" data-dashjs-player autoplay controls></video>
+        </div>
+        <div class="metrics">
+            <h3>Video Metrics</h3>
+            <p><strong>Current Bitrate:</strong> <span id="bitrate">N/A</span> kbps</p>
+            <p><strong>Buffering Events:</strong> <span id="buffering">0</span></p>
+            <p><strong>Initial Delay:</strong> <span id="delay">N/A</span> ms</p>
+        </div>
+    </div>
+
+    <script>
+        console.log("DASH.js Version:", dashjs.Version); // Confirm version
+        const url = "/dash_output/stream.mpd";
+        const player = dashjs.MediaPlayer().create();
+        const videoElement = document.getElementById("videoPlayer");
+        
+        const bitrateDisplay = document.getElementById("bitrate");
+        const bufferingDisplay = document.getElementById("buffering");
+        const delayDisplay = document.getElementById("delay");
+
+        let bufferingCount = 0;
+        let startTime = null;
+
+        player.initialize(videoElement, url, true);
+
+        // Add periodic updates every second
+        setInterval(updateBitrate, 1000);
+
+        player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function () {
+            updateBitrate();
+            startTime = performance.now();
+        });
+
+        player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, updateBitrate);
+
+        player.on(dashjs.MediaPlayer.events.PLAYBACK_WAITING, function () {
+            bufferingCount++;
+            bufferingDisplay.textContent = bufferingCount;
+        });
+
+        player.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, function () {
+            if (startTime !== null) {
+                const delay = Math.round(performance.now() - startTime);
+                delayDisplay.textContent = delay;
+                startTime = null;
+            }
+        });
+
+        function updateBitrate() {
+            try {
+                const settings = player.getSettings();
+                const throughput = player.getAverageThroughput('video');
+                console.log('Settings:', settings);
+                console.log('Throughput:', throughput);
+                
+                if (throughput) {
+                    bitrateDisplay.textContent = Math.round(throughput / 1000);
+                } else {
+                    const maxBitrate = settings.streaming.abr.maxBitrate;
+                    if (maxBitrate) {
+                        bitrateDisplay.textContent = Math.round(maxBitrate);
+                    } else {
+                        bitrateDisplay.textContent = 'N/A';
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating bitrate:', error);
+                bitrateDisplay.textContent = 'Error';
+            }
+        }
+    </script>
+</body>
+</html>
+
