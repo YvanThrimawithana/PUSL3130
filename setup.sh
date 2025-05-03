@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # Nginx Load Balancing Demo - Complete Automation Script
-# Author: Yvan Thrimawithana
-# Date: 2025-04-26
 
 echo "===== BogdanLTD Load Balancing Proof of Concept ====="
 echo "This script will set up a complete load balancing demonstration using Docker."
