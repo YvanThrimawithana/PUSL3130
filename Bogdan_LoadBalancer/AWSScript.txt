@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Log all output to a file for debugging
+exec > /var/log/user-data.log 2>&1
+
+# Update the system
+apt-get update -y
+apt-get upgrade -y
+
+# Install Git (required to clone the repository)
+apt-get install -y git
+
+# Verify Git installation
+if ! command -v git >/dev/null 2>&1; then
+    echo "Git installation failed"
+    exit 1
+fi
+
+# Clone the repository
+git clone https://github.com/YvanThrimawithana/PUSL3130.git /home/ubuntu/PUSL3130
+if [ $? -ne 0 ]; then
+    echo "Failed to clone repository"
+    exit 1
+fi
+
+# Change ownership to ubuntu user
+chown -R ubuntu:ubuntu /home/ubuntu/PUSL3130
+
+# Navigate to the repository directory
+cd /home/ubuntu/PUSL3130/Bogdan_LoadBalancer/
+
+# Set execute permissions for setup.sh
+chmod +x setup.sh
+
+# Run setup.sh and wait for completion
+./setup.sh
+if [ $? -eq 0 ] && [ -d "/home/ubuntu/PUSL3130/Bogdan_LoadBalancer/nginx-load-balancing-demo" ]; then
+    echo "setup.sh completed successfully"
+else
+    echo "setup.sh failed or demo directory not found"
+    exit 1
+fi
+
+# Navigate to the demo directory
+cd /home/ubuntu/PUSL3130/Bogdan_LoadBalancer/nginx-load-balancing-demo
+
+# Set execute permissions for run_test.sh
+chmod +x run_test.sh
+
+# Run run_test.sh in the background to start containers
+./run_test.sh &
+if [ $? -ne 0 ]; then
+    echo "run_test.sh failed to start"
+    exit 1
+fi
+
+# Wait for Docker containers to stabilize
+sleep 30
+
+# Verify containers are running (assuming setup.sh installed Docker)
+if docker ps | grep -q "nginx"; then
+    echo "Docker containers are running"
+else
+    echo "Docker containers failed to start"
+    exit 1
+fi
+
+# Log completion
+echo "User Data script completed successfully" >> /var/log/user-data.log
